@@ -53,22 +53,24 @@ function App() {
     setToasts(prev => prev.filter(toast => toast.id !== id));
   };
 
-  // Vérifier si l'utilisateur est déjà connecté au chargement
+  // Vérifier l'authentification au chargement
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     if (token) {
       setIsAuthenticated(true);
       fetchContacts();
+    } else {
+      setIsAuthenticated(false);
     }
   }, []);
 
-  // Fonction de connexion
+  // Fonction de connexion — URL CORRIGÉE ✅
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     
     try {
-      const response = await fetch('https://bacmekody.vercel.app/api/mekody/login', {
+      const response = await fetch('https://bacmekody.vercel.app/api/mekody/login', { // ✅ ESPACES SUPPRIMÉS
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -87,34 +89,37 @@ function App() {
         addToast(data.message || 'Erreur de connexion', 'error');
       }
     } catch (err) {
+      console.error("Erreur réseau :", err);
       addToast('Erreur de connexion au serveur', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  // Récupérer tous les contacts
+  // Récupérer tous les contacts — URL CORRIGÉE ✅
   const fetchContacts = async () => {
     setLoading(true);
     try {
-      const response = await fetch('https://bacmekody.vercel.app/api/contact/contact_mekody');
+      const response = await fetch('https://bacmekody.vercel.app/api/contact/contact_mekody'); // ✅ ESPACES SUPPRIMÉS
+      if (!response.ok) throw new Error("Erreur lors du chargement");
       const data = await response.json();
       setContacts(data);
       addToast(`${data.length} contacts chargés avec succès`, 'success');
     } catch (err) {
+      console.error("Erreur fetchContacts :", err);
       addToast('Erreur lors du chargement des contacts', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  // Ajouter un contact
+  // Ajouter un contact — URL CORRIGÉE ✅
   const handleAddContact = async (e) => {
     e.preventDefault();
     setLoading(true);
     
     try {
-      const response = await fetch('https://bacmekody.vercel.app/api/contact/contact_mekody', {
+      const response = await fetch('https://bacmekody.vercel.app/api/contact/contact_mekody', { // ✅
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -137,19 +142,20 @@ function App() {
         addToast('Erreur lors de l\'ajout du contact', 'error');
       }
     } catch (err) {
+      console.error("Erreur handleAddContact :", err);
       addToast('Erreur de connexion au serveur', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  // Modifier un contact
+  // Modifier un contact — URL CORRIGÉE ✅
   const handleUpdateContact = async (e) => {
     e.preventDefault();
     setLoading(true);
     
     try {
-      const response = await fetch(`https://bacmekody.vercel.app/api/contact/contact_mekody/${editingContact.id}`, {
+      const response = await fetch(`https://bacmekody.vercel.app/api/contact/contact_mekody/${editingContact.id}`, { // ✅ ESPACES SUPPRIMÉS
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -165,13 +171,14 @@ function App() {
         addToast('Erreur lors de la modification du contact', 'error');
       }
     } catch (err) {
+      console.error("Erreur handleUpdateContact :", err);
       addToast('Erreur de connexion au serveur', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  // Supprimer un contact
+  // Supprimer un contact — URL CORRIGÉE ✅
   const handleDeleteContact = async (id) => {
     if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce contact ?')) {
       return;
@@ -180,7 +187,7 @@ function App() {
     setLoading(true);
     
     try {
-      const response = await fetch(`https://bacmekody.vercel.app/api/contact/contact_mekody/${id}`, {
+      const response = await fetch(`https://bacmekody.vercel.app/api/contact/contact_mekody/${id}`, { // ✅
         method: 'DELETE',
       });
       
@@ -191,6 +198,7 @@ function App() {
         addToast('Erreur lors de la suppression du contact', 'error');
       }
     } catch (err) {
+      console.error("Erreur handleDeleteContact :", err);
       addToast('Erreur de connexion au serveur', 'error');
     } finally {
       setLoading(false);
@@ -205,6 +213,7 @@ function App() {
     addToast('Déconnexion réussie', 'success');
   };
 
+  // ⚠️ IMPORTANT : Si l'utilisateur n'est PAS authentifié, ON AFFICHE UNIQUEMENT LE LOGIN
   if (!isAuthenticated) {
     return (
       <div className="login-container">
@@ -274,6 +283,7 @@ function App() {
     );
   }
 
+  // ✅ Si authentifié, afficher l'interface admin
   return (
     <div className="admin-container">
       {/* Sidebar */}
