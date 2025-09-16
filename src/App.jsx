@@ -2,13 +2,36 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 
+// Composant Toast pour les notifications
+const Toast = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className={`toast toast-${type}`}>
+      <div className="toast-content">
+        <span className="toast-icon">
+          {type === 'success' ? '✓' : type === 'error' ? '✕' : 'ⓘ'}
+        </span>
+        <span className="toast-message">{message}</span>
+      </div>
+      <button className="toast-close" onClick={onClose}>×</button>
+    </div>
+  );
+};
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [loginData, setLoginData] = useState({ courriel: '', mot_de_passe: '' });
   const [editingContact, setEditingContact] = useState(null);
+  const [viewingContact, setViewingContact] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newContact, setNewContact] = useState({
     nom_complet: '',
@@ -17,6 +40,18 @@ function App() {
     service_interesse: '',
     message: ''
   });
+  const [toasts, setToasts] = useState([]);
+
+  // Ajouter un toast
+  const addToast = (message, type = 'info') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+
+  // Supprimer un toast
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
 
   // Vérifier si l'utilisateur est déjà connecté au chargement
   useEffect(() => {
@@ -31,7 +66,6 @@ function App() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
     
     try {
       const response = await fetch('https://bacmekody.vercel.app/api/mekody/login', {
@@ -48,11 +82,12 @@ function App() {
         localStorage.setItem('authToken', 'authenticated');
         setIsAuthenticated(true);
         fetchContacts();
+        addToast('Connexion réussie!', 'success');
       } else {
-        setError(data.message || 'Erreur de connexion');
+        addToast(data.message || 'Erreur de connexion', 'error');
       }
     } catch (err) {
-      setError('Erreur de connexion au serveur');
+      addToast('Erreur de connexion au serveur', 'error');
     } finally {
       setLoading(false);
     }
@@ -62,11 +97,12 @@ function App() {
   const fetchContacts = async () => {
     setLoading(true);
     try {
-      const response = await fetch('');
+      const response = await fetch('https://bacmekody.vercel.app/api/contact/contact_mekody');
       const data = await response.json();
       setContacts(data);
+      addToast(`${data.length} contacts chargés avec succès`, 'success');
     } catch (err) {
-      setError('Erreur lors du chargement des contacts');
+      addToast('Erreur lors du chargement des contacts', 'error');
     } finally {
       setLoading(false);
     }
@@ -95,12 +131,13 @@ function App() {
           message: ''
         });
         setShowAddForm(false);
-        fetchContacts(); // Rafraîchir la liste
+        fetchContacts();
+        addToast('Contact ajouté avec succès', 'success');
       } else {
-        setError('Erreur lors de l\'ajout du contact');
+        addToast('Erreur lors de l\'ajout du contact', 'error');
       }
     } catch (err) {
-      setError('Erreur de connexion au serveur');
+      addToast('Erreur de connexion au serveur', 'error');
     } finally {
       setLoading(false);
     }
@@ -122,12 +159,13 @@ function App() {
       
       if (response.ok) {
         setEditingContact(null);
-        fetchContacts(); // Rafraîchir la liste
+        fetchContacts();
+        addToast('Contact modifié avec succès', 'success');
       } else {
-        setError('Erreur lors de la modification du contact');
+        addToast('Erreur lors de la modification du contact', 'error');
       }
     } catch (err) {
-      setError('Erreur de connexion au serveur');
+      addToast('Erreur de connexion au serveur', 'error');
     } finally {
       setLoading(false);
     }
@@ -147,12 +185,13 @@ function App() {
       });
       
       if (response.ok) {
-        fetchContacts(); // Rafraîchir la liste
+        fetchContacts();
+        addToast('Contact supprimé avec succès', 'success');
       } else {
-        setError('Erreur lors de la suppression du contact');
+        addToast('Erreur lors de la suppression du contact', 'error');
       }
     } catch (err) {
-      setError('Erreur de connexion au serveur');
+      addToast('Erreur de connexion au serveur', 'error');
     } finally {
       setLoading(false);
     }
@@ -163,37 +202,73 @@ function App() {
     localStorage.removeItem('authToken');
     setIsAuthenticated(false);
     setContacts([]);
+    addToast('Déconnexion réussie', 'success');
   };
 
   if (!isAuthenticated) {
     return (
       <div className="login-container">
-        <div className="login-form">
-          <h2>Connexion Administrateur</h2>
-          {error && <div className="error-message">{error}</div>}
-          <form onSubmit={handleLogin}>
-            <div className="form-group">
-              <label>Email:</label>
+        <div className="login-card">
+          <div className="login-header">
+            <div className="logo">
+              <span className="logo-icon"></span>
+              <h1>Mekody Admin</h1>
+            </div>
+            <p>Interface d'administration des contacts</p>
+          </div>
+          
+          <form onSubmit={handleLogin} className="login-form">
+            <div className="input-group">
+              <label>Email</label>
               <input
                 type="email"
                 value={loginData.courriel}
                 onChange={(e) => setLoginData({...loginData, courriel: e.target.value})}
                 required
+                placeholder="votre@email.com"
               />
+              <span className="input-icon"></span>
             </div>
-            <div className="form-group">
-              <label>Mot de passe:</label>
+            
+            <div className="input-group">
+              <label>Mot de passe</label>
               <input
                 type="password"
                 value={loginData.mot_de_passe}
                 onChange={(e) => setLoginData({...loginData, mot_de_passe: e.target.value})}
                 required
+                placeholder="Votre mot de passe"
               />
+              <span className="input-icon"></span>
             </div>
-            <button type="submit" disabled={loading}>
-              {loading ? 'Connexion...' : 'Se connecter'}
+            
+            <button type="submit" className="login-btn" disabled={loading}>
+              {loading ? (
+                <span className="btn-loading">
+                  <span className="spinner"></span>
+                  Connexion...
+                </span>
+              ) : (
+                'Se connecter'
+              )}
             </button>
           </form>
+          
+          <div className="login-footer">
+            <p>© 2025 Mekody - Tous droits réservés</p>
+          </div>
+        </div>
+        
+        {/* Toast Container */}
+        <div className="toast-container">
+          {toasts.map(toast => (
+            <Toast 
+              key={toast.id} 
+              message={toast.message} 
+              type={toast.type} 
+              onClose={() => removeToast(toast.id)} 
+            />
+          ))}
         </div>
       </div>
     );
@@ -201,38 +276,206 @@ function App() {
 
   return (
     <div className="admin-container">
-      <header className="admin-header">
-        <h1>Administration des Contacts</h1>
-        <button onClick={handleLogout} className="logout-btn">Déconnexion</button>
-      </header>
-
-      {error && <div className="error-message">{error}</div>}
-
-      <div className="content-container">
-        <div className="actions-bar">
-          <button 
-            onClick={() => setShowAddForm(true)} 
-            className="add-btn"
-            disabled={loading}
-          >
-            Ajouter un contact
-          </button>
-          <button 
-            onClick={fetchContacts} 
-            className="refresh-btn"
-            disabled={loading}
-          >
-            Actualiser
+      {/* Sidebar */}
+      <div className="sidebar">
+        <div className="sidebar-header">
+          <div className="logo">
+            <span className="logo-icon"></span>
+            <h1>Mekody</h1>
+          </div>
+        </div>
+        
+        <nav className="sidebar-nav">
+          <div className="nav-item active">
+            <span className="nav-icon"></span>
+            <span className="nav-text">Les demandes</span>
+          </div>
+       
+        </nav>
+        
+        <div className="sidebar-footer">
+          <button onClick={handleLogout} className="logout-btn">
+            <span className="btn-icon"></span>
+            Déconnexion
           </button>
         </div>
+      </div>
 
-        {showAddForm && (
+      {/* Main Content */}
+      <div className="main-content">
+        <header className="content-header">
+          <h2>Gestion des demandes</h2>
+          <div className="header-actions">
+            <button 
+              onClick={() => setShowAddForm(true)} 
+              className="btn-primary"
+              disabled={loading}
+            >
+              <span className="btn-icon">+</span>
+              Nouveau Contact
+            </button>
+            <button 
+              onClick={fetchContacts} 
+              className="btn-secondary"
+              disabled={loading}
+            >
+              <span className="btn-icon"></span>
+              Actualiser
+            </button>
+          </div>
+        </header>
+
+        <div className="content-body">
+          {/* Stats Cards */}
+          <div className="stats-cards">
+            <div className="stat-card">
+              <div className="stat-icon total">
+                <span className="total-icon">📊</span>
+              </div>
+              <div className="stat-info">
+                <h3>{contacts.length}</h3>
+                <p>demande total</p>
+              </div>
+            </div>
+            
+            <div className="stat-card">
+              <div className="stat-icon recent">🆕</div>
+              <div className="stat-info">
+                <h3>{contacts.filter(c => {
+                  const contactDate = new Date(c.date_creation || Date.now());
+                  const today = new Date();
+                  return contactDate.toDateString() === today.toDateString();
+                }).length}</h3>
+                <p>Aujourd'hui</p>
+              </div>
+            </div>
+            
+            <div className="stat-card">
+              <div className="stat-icon companies"></div>
+              <div className="stat-info">
+                <h3>{new Set(contacts.map(c => c.entreprise)).size}</h3>
+                <p>Entreprises</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Contacts Table */}
+          <div className="card">
+            <div className="card-header">
+              <h3>Liste des demandes</h3>
+              <div className="search-box">
+                <input type="text" placeholder="Rechercher..." />
+                <span className="search-icon">🔍</span>
+              </div>
+            </div>
+            
+            <div className="card-body">
+              {loading ? (
+                <div className="loading-state">
+                  <div className="loading-spinner"></div>
+                  <p>Chargement des contacts...</p>
+                </div>
+              ) : contacts.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-icon">📭</div>
+                  <h4>Aucun contact trouvé</h4>
+                  <p>Commencez par ajouter votre premier contact</p>
+                  <button 
+                    onClick={() => setShowAddForm(true)} 
+                    className="btn-primary"
+                  >
+                    Ajouter un contact
+                  </button>
+                </div>
+              ) : (
+                <div className="table-container">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Nom complet</th>
+                        <th>Email</th>
+                        <th>Entreprise</th>
+                        <th>Service</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contacts.map(contact => (
+                        <tr key={contact.id}>
+                          <td>
+                            <div className="contact-info">
+                              <div className="avatar">
+                                {contact.nom_complet.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="contact-details">
+                                <div className="contact-name">{contact.nom_complet}</div>
+                                <div className="contact-message">{contact.message && contact.message.substring(0, 30)}...</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td>{contact.courriel}</td>
+                          <td>{contact.entreprise || '-'}</td>
+                          <td>
+                            <span className="service-tag">{contact.service_interesse || 'Non spécifié'}</span>
+                          </td>
+                          <td>
+                            {contact.date_creation ? new Date(contact.date_creation).toLocaleDateString() : '-'}
+                          </td>
+                          <td>
+                            <div className="table-actions">
+                              <button 
+                                onClick={() => setViewingContact(contact)}
+                                className="action-btn view"
+                                title="Voir"
+                              >
+                                👁️
+                              </button>
+                              <button 
+                                onClick={() => setEditingContact(contact)}
+                                className="action-btn edit"
+                                title="Modifier"
+                              >
+                                ✏️
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteContact(contact.id)}
+                                className="action-btn delete"
+                                title="Supprimer"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Add Contact Modal */}
+      {showAddForm && (
+        <div className="modal-overlay">
           <div className="modal">
-            <div className="modal-content">
-              <h2>Ajouter un contact</h2>
-              <form onSubmit={handleAddContact}>
-                <div className="form-group">
-                  <label>Nom complet:</label>
+            <div className="modal-header">
+              <h3>Ajouter un contact</h3>
+              <button 
+                onClick={() => setShowAddForm(false)}
+                className="modal-close"
+              >
+                ×
+              </button>
+            </div>
+            
+            <form onSubmit={handleAddContact} className="modal-body">
+              <div className="form-row">
+                <div className="input-group">
+                  <label>Nom complet *</label>
                   <input
                     type="text"
                     value={newContact.nom_complet}
@@ -240,8 +483,9 @@ function App() {
                     required
                   />
                 </div>
-                <div className="form-group">
-                  <label>Email:</label>
+                
+                <div className="input-group">
+                  <label>Email *</label>
                   <input
                     type="email"
                     value={newContact.courriel}
@@ -249,54 +493,156 @@ function App() {
                     required
                   />
                 </div>
-                <div className="form-group">
-                  <label>Entreprise:</label>
+              </div>
+              
+              <div className="form-row">
+                <div className="input-group">
+                  <label>Entreprise</label>
                   <input
                     type="text"
                     value={newContact.entreprise}
                     onChange={(e) => setNewContact({...newContact, entreprise: e.target.value})}
                   />
                 </div>
-                <div className="form-group">
-                  <label>Service intéressé:</label>
-                  <input
-                    type="text"
+                
+                <div className="input-group">
+                  <label>Service intéressé</label>
+                  <select
                     value={newContact.service_interesse}
                     onChange={(e) => setNewContact({...newContact, service_interesse: e.target.value})}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Message:</label>
-                  <textarea
-                    value={newContact.message}
-                    onChange={(e) => setNewContact({...newContact, message: e.target.value})}
-                    rows="4"
-                  />
-                </div>
-                <div className="form-actions">
-                  <button type="submit" disabled={loading}>
-                    {loading ? 'Ajout...' : 'Ajouter'}
-                  </button>
-                  <button 
-                    type="button" 
-                    onClick={() => setShowAddForm(false)}
-                    disabled={loading}
                   >
-                    Annuler
-                  </button>
+                    <option value="">Sélectionner un service</option>
+                    <option value="Marketing Digital">Marketing Digital</option>
+                    <option value="Evacuation sanitaire">Evacuation sanitaire</option>
+                    <option value="voyage organisé">voyage organisé</option>
+                    <option value="Solutions digitales">Solutions digitales</option>
+                    <option value="Autre">Autre</option>
+                    <option value="Formation">Formation</option>
+                  </select>
                 </div>
-              </form>
+              </div>
+              
+              <div className="input-group">
+                <label>Message</label>
+                <textarea
+                  value={newContact.message}
+                  onChange={(e) => setNewContact({...newContact, message: e.target.value})}
+                  rows="4"
+                  placeholder="Message du contact..."
+                />
+              </div>
+              
+              <div className="modal-actions">
+                <button 
+                  type="button" 
+                  onClick={() => setShowAddForm(false)}
+                  className="btn-secondary"
+                >
+                  Annuler
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={loading}
+                  className="btn-primary"
+                >
+                  {loading ? 'Ajout en cours...' : 'Ajouter le contact'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Contact Modal */}
+      {viewingContact && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h3>Détails du contact</h3>
+              <button 
+                onClick={() => setViewingContact(null)}
+                className="modal-close"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="contact-detail-header">
+                <div className="detail-avatar">
+                  {viewingContact.nom_complet.charAt(0).toUpperCase()}
+                </div>
+                <div className="detail-title">
+                  <h4>{viewingContact.nom_complet}</h4>
+                  <p>{viewingContact.courriel}</p>
+                </div>
+              </div>
+              
+              <div className="detail-grid">
+                <div className="detail-item">
+                  <span className="detail-label">Entreprise</span>
+                  <span className="detail-value">{viewingContact.entreprise || 'Non spécifié'}</span>
+                </div>
+                
+                <div className="detail-item">
+                  <span className="detail-label">Service intéressé</span>
+                  <span className="detail-value">{viewingContact.service_interesse || 'Non spécifié'}</span>
+                </div>
+                
+                <div className="detail-item">
+                  <span className="detail-label">Date de création</span>
+                  <span className="detail-value">
+                    {viewingContact.date_creation 
+                      ? new Date(viewingContact.date_creation).toLocaleDateString('fr-FR', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
+                      : 'Non spécifié'}
+                  </span>
+                </div>
+                
+                <div className="detail-item full-width">
+                  <span className="detail-label">Message</span>
+                  <div className="detail-message">
+                    {viewingContact.message || 'Aucun message'}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="modal-actions">
+                <button 
+                  onClick={() => setViewingContact(null)}
+                  className="btn-primary"
+                >
+                  Fermer
+                </button>
+              </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {editingContact && (
+      {/* Edit Contact Modal */}
+      {editingContact && (
+        <div className="modal-overlay">
           <div className="modal">
-            <div className="modal-content">
-              <h2>Modifier le contact</h2>
-              <form onSubmit={handleUpdateContact}>
-                <div className="form-group">
-                  <label>Nom complet:</label>
+            <div className="modal-header">
+              <h3>Modifier le contact</h3>
+              <button 
+                onClick={() => setEditingContact(null)}
+                className="modal-close"
+              >
+                ×
+              </button>
+            </div>
+            
+            <form onSubmit={handleUpdateContact} className="modal-body">
+              <div className="form-row">
+                <div className="input-group">
+                  <label>Nom complet *</label>
                   <input
                     type="text"
                     value={editingContact.nom_complet}
@@ -304,8 +650,9 @@ function App() {
                     required
                   />
                 </div>
-                <div className="form-group">
-                  <label>Email:</label>
+                
+                <div className="input-group">
+                  <label>Email *</label>
                   <input
                     type="email"
                     value={editingContact.courriel}
@@ -313,95 +660,74 @@ function App() {
                     required
                   />
                 </div>
-                <div className="form-group">
-                  <label>Entreprise:</label>
+              </div>
+              
+              <div className="form-row">
+                <div className="input-group">
+                  <label>Entreprise</label>
                   <input
                     type="text"
                     value={editingContact.entreprise}
                     onChange={(e) => setEditingContact({...editingContact, entreprise: e.target.value})}
                   />
                 </div>
-                <div className="form-group">
-                  <label>Service intéressé:</label>
-                  <input
-                    type="text"
+                
+                <div className="input-group">
+                  <label>Service intéressé</label>
+                  <select
                     value={editingContact.service_interesse}
                     onChange={(e) => setEditingContact({...editingContact, service_interesse: e.target.value})}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Message:</label>
-                  <textarea
-                    value={editingContact.message}
-                    onChange={(e) => setEditingContact({...editingContact, message: e.target.value})}
-                    rows="4"
-                  />
-                </div>
-                <div className="form-actions">
-                  <button type="submit" disabled={loading}>
-                    {loading ? 'Enregistrement...' : 'Enregistrer'}
-                  </button>
-                  <button 
-                    type="button" 
-                    onClick={() => setEditingContact(null)}
-                    disabled={loading}
                   >
-                    Annuler
-                  </button>
+                    <option value="">Sélectionner un service</option>
+                    <option value="Développement Web">Développement Web</option>
+                    <option value="Design Graphique">Design Graphique</option>
+                    <option value="Marketing Digital">Marketing Digital</option>
+                    <option value="Consultance">Consultance</option>
+                    <option value="Formation">Formation</option>
+                  </select>
                 </div>
-              </form>
-            </div>
+              </div>
+              
+              <div className="input-group">
+                <label>Message</label>
+                <textarea
+                  value={editingContact.message}
+                  onChange={(e) => setEditingContact({...editingContact, message: e.target.value})}
+                  rows="4"
+                />
+              </div>
+              
+              <div className="modal-actions">
+                <button 
+                  type="button" 
+                  onClick={() => setEditingContact(null)}
+                  className="btn-secondary"
+                >
+                  Annuler
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={loading}
+                  className="btn-primary"
+                >
+                  {loading ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                </button>
+              </div>
+            </form>
           </div>
-        )}
+        </div>
+      )}
 
-        {loading && !showAddForm && !editingContact ? (
-          <div className="loading">Chargement des contacts...</div>
-        ) : (
-          <div className="contacts-table-container">
-            <h2>Liste des contacts ({contacts.length})</h2>
-            {contacts.length === 0 ? (
-              <p>Aucun contact à afficher.</p>
-            ) : (
-              <table className="contacts-table">
-                <thead>
-                  <tr>
-                    <th>Nom complet</th>
-                    <th>Email</th>
-                    <th>Entreprise</th>
-                    <th>Service</th>
-                    <th>Message</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {contacts.map(contact => (
-                    <tr key={contact.id}>
-                      <td>{contact.nom_complet}</td>
-                      <td>{contact.courriel}</td>
-                      <td>{contact.entreprise}</td>
-                      <td>{contact.service_interesse}</td>
-                      <td className="message-cell">{contact.message}</td>
-                      <td className="actions-cell">
-                        <button 
-                          onClick={() => setEditingContact(contact)}
-                          className="edit-btn"
-                        >
-                          Modifier
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteContact(contact.id)}
-                          className="delete-btn"
-                        >
-                          Supprimer
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
+      {/* Toast Container */}
+      <div className="toast-container">
+        {toasts.map(toast => (
+          <Toast 
+            key={toast.id} 
+            message={toast.message} 
+            type={toast.type} 
+            onClose={() => removeToast(toast.id)} 
+          />
+        ))}
       </div>
     </div>
   );
